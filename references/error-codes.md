@@ -1,100 +1,73 @@
-# 에러 코드 Reference
+# Common API Error Handling Patterns
 
-## 에러 코드 체계
+프레임워크에 관계없이 적용되는 API 에러 처리 패턴입니다.
+프로젝트에 커스텀 에러 클래스가 있으면 반드시 그것을 사용합니다.
 
-5자리 코드: `XXYYY`
-- `XX`: HTTP 상태 코드 앞 2자리 (40=4xx, 50=5xx)
-- `YYY`: 세부 에러 번호
+## Standard HTTP Status Codes
 
-## 자주 사용하는 에러 코드
+| Status | 의미 | 사용 시점 |
+|--------|------|-----------|
+| 200 | OK | 조회/수정 성공 |
+| 201 | Created | 리소스 생성 성공 |
+| 204 | No Content | 삭제 성공 |
+| 400 | Bad Request | 입력 검증 실패 |
+| 401 | Unauthorized | 인증 필요/실패 |
+| 403 | Forbidden | 권한 없음 |
+| 404 | Not Found | 리소스 없음 |
+| 409 | Conflict | 중복/충돌 |
+| 422 | Unprocessable Entity | 비즈니스 규칙 위반 |
+| 429 | Too Many Requests | Rate limit 초과 |
+| 500 | Internal Server Error | 서버 오류 |
 
-### 인증 에러 (401xx)
+## Error Response Patterns
 
-| 코드 | 상수 | 설명 |
-|------|------|------|
-| 40101 | UNAUTHORIZED | 인증 필요 / 잘못된 자격증명 |
-| 40102 | INVALID_TOKEN | 유효하지 않은 토큰 |
-| 40103 | TOKEN_EXPIRED | 만료된 토큰 |
+### Pattern A: Simple Object
 
-### 권한 에러 (403xx)
+```json
+{ "error": "Resource not found" }
+```
 
-| 코드 | 상수 | 설명 |
-|------|------|------|
-| 40301 | FORBIDDEN | 접근 권한 없음 |
-| 40302 | ADMIN_REQUIRED | 관리자 권한 필요 |
+### Pattern B: Structured Object
 
-### 리소스 에러 (404xx)
-
-| 코드 | 상수 | 설명 |
-|------|------|------|
-| 40401 | NOT_FOUND | 리소스를 찾을 수 없음 |
-| 40402 | USER_NOT_FOUND | 사용자를 찾을 수 없음 |
-| 40403 | LINK_NOT_FOUND | 링크를 찾을 수 없음 |
-
-### 검증 에러 (400xx)
-
-| 코드 | 상수 | 설명 |
-|------|------|------|
-| 40001 | BAD_REQUEST | 잘못된 요청 |
-| 40002 | VALIDATION_ERROR | 입력 검증 실패 |
-| 40003 | INVALID_INPUT | 유효하지 않은 입력 |
-
-### 충돌 에러 (409xx)
-
-| 코드 | 상수 | 설명 |
-|------|------|------|
-| 40901 | CONFLICT | 리소스 충돌 |
-| 40902 | DUPLICATE_EMAIL | 중복된 이메일 |
-| 40903 | DUPLICATE_ALIAS | 중복된 별칭 |
-
-### 제한 에러 (429xx)
-
-| 코드 | 상수 | 설명 |
-|------|------|------|
-| 42901 | RATE_LIMIT_EXCEEDED | Rate limit 초과 |
-| 42902 | LIMIT_EXCEEDED | 생성 제한 초과 |
-
-### 서버 에러 (500xx)
-
-| 코드 | 상수 | 설명 |
-|------|------|------|
-| 50001 | INTERNAL_SERVER_ERROR | 서버 내부 오류 |
-| 50002 | DATABASE_ERROR | 데이터베이스 오류 |
-
-## 사용 예시
-
-```typescript
-import { AppError } from '@/shared/@withwiz/error/AppError';
-
-// 리소스 없음
-const link = await linkService.getById(id);
-if (!link) {
-  throw new AppError(40403); // LINK_NOT_FOUND
-}
-
-// 권한 없음
-if (link.userId !== user.id) {
-  throw new AppError(40301); // FORBIDDEN
-}
-
-// 중복 검사
-const existing = await userService.getByEmail(email);
-if (existing) {
-  throw new AppError(40902); // DUPLICATE_EMAIL
-}
-
-// 제한 초과
-if (user.linkCount >= MAX_LINKS) {
-  throw new AppError(42902); // LIMIT_EXCEEDED
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Resource not found"
+  }
 }
 ```
 
-## 커스텀 에러 메시지
+### Pattern C: With Details (Validation)
 
-```typescript
-// 기본 메시지 사용
-throw new AppError(40401);
-
-// 커스텀 메시지 추가
-throw new AppError(40401, 'The requested link does not exist');
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid input",
+    "details": [
+      { "field": "email", "message": "Invalid email format" }
+    ]
+  }
+}
 ```
+
+## Common Error Scenarios
+
+```
+리소스 없음     → 404
+권한 없음       → 403
+입력 검증 실패  → 400 or 422
+중복 데이터     → 409
+인증 실패       → 401
+제한 초과       → 429
+```
+
+## Detection Priority
+
+프로젝트에서 다음 순서로 에러 처리 방식을 탐색:
+
+1. **커스텀 에러 클래스** (AppError, HttpException, ApiError 등)
+2. **에러 핸들러 미들웨어** (errorHandler, exception filter 등)
+3. **기존 API에서 사용하는 패턴** (throw vs return)
+4. **위 패턴이 없으면** 프레임워크 기본 방식 사용

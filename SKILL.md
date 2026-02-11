@@ -1,125 +1,89 @@
 ---
 name: api-endpoint-creator
 description: |
-  Next.js 15 App Router API 엔드포인트 생성 가이드.
+  API endpoint creation guide that auto-detects project framework and conventions.
   Use when "API 만들어", "엔드포인트 추가", "route 생성", "API endpoint", "새 API", "CRUD API" 요청 시.
+  Supports Next.js, Express, Fastify, NestJS, Hono, and more.
 ---
 
 # API Endpoint Creator
 
-Next.js 15 App Router 패턴에 맞는 API 엔드포인트를 생성합니다.
+프로젝트의 프레임워크와 기존 패턴을 자동 감지하여 일관된 API 엔드포인트를 생성합니다.
 
-## Quick Start
+## Step 1: Project Detection
 
-```typescript
-// src/app/api/[feature]/route.ts
-import { withAuthApi } from '@/shared/@withwiz/middleware/wrappers';
-import { NextApiResponse } from '@/lib/utils/api-response-nextjs';
-import { IApiContext } from '@/shared/@withwiz/middleware/types';
-import { z } from 'zod';
+**반드시 엔드포인트 생성 전에 프로젝트를 분석합니다.**
 
-const createSchema = z.object({
-  name: z.string().min(1).max(100),
-});
+### 1-1. 프레임워크 감지
 
-export const POST = withAuthApi(async (context: IApiContext) => {
-  const body = await context.request.json();
-  const data = createSchema.parse(body);
+`package.json`의 dependencies에서 프레임워크를 식별:
 
-  // 비즈니스 로직
-  const result = await someService.create(data, context.user!.id);
+| 감지 기준 | 프레임워크 | 라우트 방식 |
+|-----------|-----------|-------------|
+| `next` + `app/` 디렉토리 존재 | Next.js App Router | 파일 기반 (`route.ts`) |
+| `next` + `pages/api/` 존재 | Next.js Pages Router | 파일 기반 (`[name].ts`) |
+| `express` | Express.js | 코드 기반 (`router.get()`) |
+| `fastify` | Fastify | 코드 기반 (`fastify.get()`) |
+| `@nestjs/core` | NestJS | 데코레이터 (`@Controller`) |
+| `hono` | Hono | 코드 기반 (`app.get()`) |
+| `@hono/node-server` | Hono (Node) | 코드 기반 |
+| `koa` | Koa | 코드 기반 (`router.get()`) |
 
-  return NextApiResponse.created(result);
-});
+### 1-2. 기존 패턴 분석
+
+기존 API 파일을 2-3개 읽어 다음을 파악:
+
+- **미들웨어/래퍼**: 인증, rate limit 처리 방식
+- **응답 헬퍼**: 성공/에러 응답 유틸리티
+- **에러 처리**: 커스텀 에러 클래스, 에러 핸들러
+- **검증 라이브러리**: zod, joi, class-validator, yup 등
+- **DB/ORM**: prisma, drizzle, typeorm, mongoose, knex 등
+- **디렉토리 구조**: 라우트/컨트롤러/서비스 파일 위치
+- **네이밍 컨벤션**: camelCase, kebab-case, 파일명 패턴
+- **TypeScript 여부**: `.ts`/`.js` 확장자
+
+### 1-3. 감지 명령 (내부 수행)
+
+```
+1. Read package.json → 프레임워크, 검증 라이브러리, ORM 식별
+2. Glob "**/*route*" or "**/api/**" or "**/controller*" → API 파일 위치 파악
+3. Read 기존 API 파일 2-3개 → 패턴 파악
+4. Read tsconfig.json (있으면) → path alias 확인
 ```
 
-## Workflow
+## Step 2: Requirements Gathering
 
-### 1. 요구사항 확인
+사용자에게 확인:
 
-질문:
-- 어떤 리소스의 API인가? (links, users, favorites 등)
+- 어떤 리소스의 API인가? (users, posts, products 등)
 - 필요한 HTTP 메서드는? (GET, POST, PUT, DELETE)
 - 인증 필요 여부? (공개/인증/관리자)
-- 동적 라우트 필요? (`[id]`, `[shortCode]`)
+- 동적 라우트 파라미터? (`[id]`, `:id`, `{id}`)
 
-### 2. 파일 위치 결정
+## Step 3: Generate Endpoint
 
-```
-src/app/api/
-├── [feature]/
-│   ├── route.ts              # 목록/생성 (GET, POST)
-│   └── [id]/
-│       └── route.ts          # 단일 리소스 (GET, PUT, DELETE)
-```
+**감지된 패턴에 완전히 맞춰서 생성합니다.**
 
-### 3. 래퍼 선택
+핵심 원칙:
+1. 기존 프로젝트의 import 경로를 그대로 사용
+2. 기존 미들웨어/래퍼를 그대로 사용
+3. 기존 응답 헬퍼를 그대로 사용
+4. 기존 에러 처리 패턴을 그대로 사용
+5. 기존 파일 네이밍/구조를 그대로 따름
+6. 새로운 유틸리티나 패턴을 발명하지 않음
 
-| 래퍼 | 용도 | Rate Limit |
-|------|------|------------|
-| `withPublicApi` | 인증 불필요 (로그인, 회원가입) | 120/min |
-| `withAuthApi` | 로그인 필수 | 120/min |
-| `withAdminApi` | 관리자 전용 | 200/min |
+## Framework-Specific Reference
 
-### 4. Zod 스키마 작성
-
-```typescript
-// src/lib/validators/[feature]Schema.ts
-import { z } from 'zod';
-import { sanitizeInput } from '@/shared/@withwiz/utils/sanitize';
-
-export const createFeatureSchema = z.object({
-  name: z.string()
-    .min(1, 'Name is required')
-    .max(100)
-    .transform(sanitizeInput),
-  description: z.string().max(500).optional(),
-});
-
-export const updateFeatureSchema = createFeatureSchema.partial();
-```
-
-### 5. 에러 처리
-
-```typescript
-import { AppError } from '@/shared/@withwiz/error/AppError';
-
-// 리소스 없음
-if (!resource) throw new AppError(40401); // NOT_FOUND
-
-// 권한 없음
-if (resource.userId !== user.id) throw new AppError(40301); // FORBIDDEN
-
-// 비즈니스 규칙 위반
-if (user.linkCount >= limit) throw new AppError(40901); // LIMIT_EXCEEDED
-```
-
-### 6. 응답 형식
-
-```typescript
-// 단일 리소스
-return NextApiResponse.success(data);
-
-// 생성 (201)
-return NextApiResponse.created(newResource);
-
-// 페이지네이션
-return NextApiResponse.paginated(items, page, pageSize, total, 'resources');
-
-// 삭제 (204)
-return NextApiResponse.noContent();
-```
-
-## Templates
-
-CRUD 엔드포인트 템플릿: [references/crud-template.md](references/crud-template.md)
-에러 코드 목록: [references/error-codes.md](references/error-codes.md)
+프레임워크별 CRUD 패턴: [references/crud-template.md](references/crud-template.md)
+공통 에러 처리 패턴: [references/error-codes.md](references/error-codes.md)
 
 ## Checklist
 
-- [ ] 올바른 래퍼 사용 (withPublicApi/withAuthApi/withAdminApi)
-- [ ] Zod 스키마로 입력 검증
-- [ ] AppError로 비즈니스 에러 처리
-- [ ] NextApiResponse 헬퍼로 응답
-- [ ] 서비스 레이어에 비즈니스 로직 위임
-- [ ] `src/shared/` → `src/lib/` 역방향 의존 금지
+- [ ] 프로젝트 프레임워크 감지 완료
+- [ ] 기존 API 파일 패턴 분석 완료
+- [ ] 기존 미들웨어/래퍼 사용
+- [ ] 기존 검증 라이브러리로 입력 검증
+- [ ] 기존 에러 처리 패턴 따름
+- [ ] 기존 응답 형식 따름
+- [ ] 비즈니스 로직은 서비스 레이어에 위임 (프로젝트에 서비스 레이어가 있는 경우)
+- [ ] 기존 디렉토리 구조와 네이밍 컨벤션 준수
