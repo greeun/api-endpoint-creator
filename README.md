@@ -1,12 +1,12 @@
 # api-endpoint-creator
 
-프로젝트의 프레임워크와 기존 패턴을 자동 감지하여 API 엔드포인트를 생성하는 Claude Code 스킬입니다.
+A Claude Code skill that automatically detects your project's framework and existing patterns to generate API endpoints.
 
-## 지원 프레임워크
+## Supported Frameworks
 
 Next.js (App Router / Pages Router), Express, Fastify, NestJS, Hono, Koa
 
-## 트리거 키워드
+## Trigger Keywords
 
 - "API 만들어"
 - "엔드포인트 추가"
@@ -15,31 +15,31 @@ Next.js (App Router / Pages Router), Express, Fastify, NestJS, Hono, Koa
 - "새 API"
 - "CRUD API"
 
-## 사용 예시
+## Usage Examples
 
 ```bash
-# Claude Code에서 자연어로 요청
+# Request in natural language within Claude Code
 "favorites CRUD API 만들어줘"
 "사용자 프로필 조회 API 추가해줘"
 "댓글 엔드포인트 생성해줘"
 ```
 
-## 동작 방식
+## How It Works
 
-1. **프로젝트 감지**: `package.json`, 기존 API 파일, `tsconfig.json`을 분석하여 프레임워크와 패턴 식별
-2. **요구사항 확인**: 리소스명, HTTP 메서드, 인증 여부 등 확인
-3. **엔드포인트 생성**: 감지된 프로젝트 패턴에 맞춰 코드 생성 (기존 미들웨어, 응답 헬퍼, 에러 처리를 그대로 사용)
+1. **Project detection**: Analyzes `package.json`, existing API files, and `tsconfig.json` to identify the framework and patterns
+2. **Requirements confirmation**: Confirms the resource name, HTTP methods, whether authentication is required, etc.
+3. **Endpoint generation**: Generates code matching the detected project patterns (reusing existing middleware, response helpers, and error handling as-is)
 
-## 파일 구조
+## File Structure
 
 ```
 api-endpoint-creator/
-├── SKILL.md                    # 메인 가이드 (프레임워크 감지 + 워크플로우)
+├── SKILL.md                    # Main guide (framework detection + workflow)
 └── references/
-    ├── crud-template.md        # 6개 프레임워크별 CRUD 템플릿
-    └── error-codes.md          # 범용 에러 처리 패턴
+    ├── crud-template.md        # CRUD templates for 6 frameworks
+    └── error-codes.md          # General error handling patterns
 ```
 
-## 라이선스
+## License
 
 MIT

@@ -4,6 +4,7 @@ description: |
   API endpoint creation guide that auto-detects project framework and conventions.
   Use when "API 만들어", "엔드포인트 추가", "route 생성", "API endpoint", "새 API", "CRUD API" 요청 시.
   Supports Next.js, Express, Fastify, NestJS, Hono, and more.
+version: 1.0.0
 ---
 
 # API Endpoint Creator
